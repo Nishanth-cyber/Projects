@@ -1,40 +1,33 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
+# Use slim Python image
+FROM python:3.10-slim
 
-app = FastAPI(title="Lean Resume Matcher")
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Set working directory
+WORKDIR /app
 
-@app.post("/match-resume")
-async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
-    try:
-        if not resume.filename.endswith(".pdf"):
-            return JSONResponse(status_code=400, content={"error": "Only PDF files are supported."})
+# Install system dependencies (for pdfplumber and font rendering)
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    libpoppler-cpp-dev \
+    poppler-utils \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-        resume_bytes = await resume.read()
-        resume_text = extract_text_from_pdf(resume_bytes)
+# Copy project files
+COPY . .
 
-        if not resume_text:
-            return JSONResponse(status_code=400, content={"error": "No readable text in PDF."})
+# Install Python dependencies
+RUN pip install --upgrade pip
+RUN pip install -r requirements.txt
 
-        score = calculate_similarity(resume_text, job_description)
+# Download spaCy model
+RUN python -m spacy download en_core_web_sm
 
-        resume_keywords = extract_keywords(resume_text)
-        jd_keywords = extract_keywords(job_description)
+# Expose port
+EXPOSE 8000
 
-        missing = sorted(jd_keywords - resume_keywords)
-
-        return {
-            "score": score,
-            "missing_keywords": missing
-        }
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+# Run FastAPI app
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
