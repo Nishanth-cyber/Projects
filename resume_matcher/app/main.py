@@ -1,29 +1,41 @@
-import tempfile, os, pdfplumber
-from sentence_transformers import SentenceTransformer, util
-import spacy
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
 
-nlp = spacy.load("en_core_web_sm")  # lightweight
+app = FastAPI(title="Lean Resume Matcher")
 
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-def extract_text_from_pdf(file_bytes):
-    temp_path = tempfile.mktemp()
-    with open(temp_path, "wb") as f:
-        f.write(file_bytes)
-
+@app.post("/match-resume")
+async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
     try:
-        with pdfplumber.open(temp_path) as pdf:
-            text = "\n".join([page.extract_text() or "" for page in pdf.pages])
-    finally:
-        os.remove(temp_path)
+        if not resume.filename.endswith(".pdf"):
+            return JSONResponse(status_code=400, content={"error": "Only PDF files are supported."})
 
-    return text.strip()
+        resume_bytes = await resume.read()
+        resume_text = extract_text_from_pdf(resume_bytes)
 
-def calculate_similarity(text1, text2):
-    emb1 = embedder.encode(text1, convert_to_tensor=True)
-    emb2 = embedder.encode(text2, convert_to_tensor=True)
-    return round(util.cos_sim(emb1, emb2).item() * 100, 2)
+        if not resume_text:
+            return JSONResponse(status_code=400, content={"error": "No readable text in PDF."})
 
-def extract_keywords(text):
-    doc = nlp(text.lower())
-    return set([token.lemma_ for token in doc if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop])
+        score = calculate_similarity(resume_text, job_description)
+
+        resume_keywords = extract_keywords(resume_text)
+        jd_keywords = extract_keywords(job_description)
+
+        missing = sorted(jd_keywords - resume_keywords)
+
+        return {
+            "score": score,
+            "missing_keywords": missing
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
+
