@@ -1,5 +1,6 @@
 fastapi
 uvicorn
 pdfplumber==0.10.3
+scikit-learn
 spacy
-sentence-transformers
+python-multipart
