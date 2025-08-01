@@ -1,22 +1,35 @@
+# Use a smaller base image with Python and pip
 FROM python:3.11-slim
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
+# Set work directory
+WORKDIR /app
+
+# Install system dependencies (PDF, fonts, etc.)
 RUN apt-get update && apt-get install -y \
+    gcc \
+    libffi-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    libjpeg-dev \
     poppler-utils \
     && rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
-
+# Install Python dependencies
 COPY requirements.txt .
-
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
-RUN python -m spacy download en_core_web_sm || echo "Skipping spaCy model download"
+# Download spaCy model ahead of time
+RUN python -m spacy download en_core_web_sm
 
-COPY . .
+# Copy app code
+COPY app ./app
 
+# Expose port (Render uses PORT env var)
 EXPOSE 8000
 
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port $PORT"]
+# Start FastAPI with uvicorn
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
