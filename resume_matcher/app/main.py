@@ -5,7 +5,7 @@ from .utils import extract_text_from_file, calculate_similarity, extract_keyword
 import spacy
 import subprocess
 
-# Lazy-load spaCy model (in case it’s not pre-downloaded)
+# Lazy-load spaCy model
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
@@ -14,7 +14,7 @@ except OSError:
 
 app = FastAPI(title="Resume Matcher API")
 
-# Enable CORS for frontend calls
+# CORS (keep this for frontend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,12 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Simple health check (Render uses this sometimes)
 @app.get("/")
 def read_root():
     return {"status": "ok"}
 
-# Main endpoint
 @app.post("/match-resume")
 async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
     try:

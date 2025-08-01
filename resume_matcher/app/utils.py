@@ -3,8 +3,8 @@ from sentence_transformers import SentenceTransformer, util
 from keybert import KeyBERT
 import spacy
 
-nlp = spacy.load("en_core_web_sm")
-embedder = SentenceTransformer("all-MiniLM-L6-v2")
+nlp = spacy.load("en_core_web_sm")  # Make sure this matches with main.py
+embedder = SentenceTransformer("all-MiniLM-L6-v2")  # ✅ fast + light
 kw_model = KeyBERT(model=embedder)
 
 def extract_text_from_file(file_bytes, filename):
