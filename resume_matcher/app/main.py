@@ -1,52 +1,29 @@
-from fastapi import FastAPI, UploadFile, File, Form
-from fastapi.responses import JSONResponse
-from fastapi.middleware.cors import CORSMiddleware
-from .utils import extract_text_from_file, calculate_similarity, extract_keywords
+import tempfile, os, pdfplumber
+from sentence_transformers import SentenceTransformer, util
 import spacy
-import subprocess
 
-# Lazy-load spaCy model
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
+nlp = spacy.load("en_core_web_sm")  # lightweight
 
-app = FastAPI(title="Resume Matcher API")
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-# CORS (keep this for frontend)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+def extract_text_from_pdf(file_bytes):
+    temp_path = tempfile.mktemp()
+    with open(temp_path, "wb") as f:
+        f.write(file_bytes)
 
-@app.get("/")
-def read_root():
-    return {"status": "ok"}
-
-@app.post("/match-resume")
-async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
     try:
-        resume_bytes = await resume.read()
-        resume_text = extract_text_from_file(resume_bytes, resume.filename)
+        with pdfplumber.open(temp_path) as pdf:
+            text = "\n".join([page.extract_text() or "" for page in pdf.pages])
+    finally:
+        os.remove(temp_path)
 
-        if not resume_text.strip():
-            return JSONResponse(status_code=400, content={"error": "Resume has no readable text."})
+    return text.strip()
 
-        score = calculate_similarity(resume_text, job_description)
-        resume_keywords = set(extract_keywords(resume_text))
-        jd_keywords = set(extract_keywords(job_description))
+def calculate_similarity(text1, text2):
+    emb1 = embedder.encode(text1, convert_to_tensor=True)
+    emb2 = embedder.encode(text2, convert_to_tensor=True)
+    return round(util.cos_sim(emb1, emb2).item() * 100, 2)
 
-        matched = sorted(jd_keywords & resume_keywords)
-        missing = sorted(jd_keywords - resume_keywords)
-
-        return {
-            "score": score,
-            "matched_keywords": matched,
-            "missing_keywords": missing
-        }
-
-    except Exception as e:
-        return JSONResponse(status_code=500, content={"error": str(e)})
+def extract_keywords(text):
+    doc = nlp(text.lower())
+    return set([token.lemma_ for token in doc if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop])
