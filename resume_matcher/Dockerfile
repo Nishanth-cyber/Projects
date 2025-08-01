@@ -1,14 +1,14 @@
-# Use slim Python image
+# Base image
 FROM python:3.10-slim
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+# Environment variables
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (for pdfplumber and font rendering)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
     libpoppler-cpp-dev \
@@ -29,5 +29,5 @@ RUN python -m spacy download en_core_web_sm
 # Expose port
 EXPOSE 8000
 
-# Run FastAPI app
+# Start app
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
