@@ -3,4 +3,5 @@ uvicorn
 pdfplumber==0.10.3
 scikit-learn
 spacy
+keybert
 python-multipart
