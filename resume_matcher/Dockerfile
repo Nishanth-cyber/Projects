@@ -1,19 +1,34 @@
-FROM python:3.11-slim-buster
+# Use a lightweight and updated base image
+FROM python:3.11-slim-bookworm
 
+# Set environment variables to avoid interactive prompts
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working directory
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    poppler-utils \
-    && apt-get clean
+# Install system dependencies (for PDF tools, spaCy, etc.)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        poppler-utils \
+        libglib2.0-0 \
+        libsm6 \
+        libxext6 \
+        libxrender-dev \
+        && apt-get clean && \
+        rm -rf /var/lib/apt/lists/*
 
+# Install Python dependencies
 COPY requirements.txt .
-RUN pip install --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    python -m spacy download en_core_web_sm
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
+# Copy project files
 COPY . .
 
-EXPOSE 10000
+# Expose the port FastAPI will run on
+EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "10000"]
+# Run the FastAPI app using uvicorn
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
