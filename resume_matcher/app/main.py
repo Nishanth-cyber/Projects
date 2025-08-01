@@ -1,15 +1,11 @@
-# app/main.py
-
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
-import uvicorn
+from app.utils import extract_text_from_pdf, calculate_similarity, extract_keywords
 import os
 
-app = FastAPI(title="Resume Matcher API (PDF Only)")
+app = FastAPI(title="Resume Matcher API")
 
-# Enable CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -19,22 +15,21 @@ app.add_middleware(
 
 @app.get("/")
 def root():
-    return {"status": "Resume Matcher API is running"}
+    return {"status": "API Running"}
 
 @app.post("/match-resume")
 async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
     try:
         if not resume.filename.endswith(".pdf"):
-            return JSONResponse(status_code=400, content={"error": "Only PDF files are supported."})
+            return JSONResponse(status_code=400, content={"error": "Only PDF files supported."})
 
         resume_bytes = await resume.read()
         resume_text = extract_text_from_pdf(resume_bytes)
 
         if not resume_text.strip():
-            return JSONResponse(status_code=400, content={"error": "No readable text in resume PDF."})
+            return JSONResponse(status_code=400, content={"error": "Resume has no readable text."})
 
         score = calculate_similarity(resume_text, job_description)
-
         resume_keywords = extract_keywords(resume_text)
         jd_keywords = extract_keywords(job_description)
 
@@ -47,8 +42,3 @@ async def match_resume(resume: UploadFile = File(...), job_description: str = Fo
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
-
-# 👇 This block makes sure Render detects and runs it correctly
-if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8000))
-    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
