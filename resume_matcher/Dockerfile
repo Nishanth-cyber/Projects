@@ -1,34 +1,40 @@
-# Use a lightweight and updated base image
-FROM python:3.11-slim-bookworm
+from fastapi import FastAPI, UploadFile, File, Form
+from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
 
-# Set environment variables to avoid interactive prompts
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+app = FastAPI(title="Lean Resume Matcher")
 
-# Set working directory
-WORKDIR /app
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-# Install system dependencies (for PDF tools, spaCy, etc.)
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        build-essential \
-        poppler-utils \
-        libglib2.0-0 \
-        libsm6 \
-        libxext6 \
-        libxrender-dev \
-        && apt-get clean && \
-        rm -rf /var/lib/apt/lists/*
+@app.post("/match-resume")
+async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
+    try:
+        if not resume.filename.endswith(".pdf"):
+            return JSONResponse(status_code=400, content={"error": "Only PDF files are supported."})
 
-# Install Python dependencies
-COPY requirements.txt .
-RUN pip install --upgrade pip && pip install -r requirements.txt
+        resume_bytes = await resume.read()
+        resume_text = extract_text_from_pdf(resume_bytes)
 
-# Copy project files
-COPY . .
+        if not resume_text:
+            return JSONResponse(status_code=400, content={"error": "No readable text in PDF."})
 
-# Expose the port FastAPI will run on
-EXPOSE 8000
+        score = calculate_similarity(resume_text, job_description)
 
-# Run the FastAPI app using uvicorn
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+        resume_keywords = extract_keywords(resume_text)
+        jd_keywords = extract_keywords(job_description)
+
+        missing = sorted(jd_keywords - resume_keywords)
+
+        return {
+            "score": score,
+            "missing_keywords": missing
+        }
+
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"error": str(e)})
