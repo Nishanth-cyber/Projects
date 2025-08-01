@@ -1,8 +1,7 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from app.utils import extract_text_from_pdf, calculate_similarity, extract_keywords
-import os
+from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
 
 app = FastAPI(title="Resume Matcher API")
 
@@ -14,29 +13,30 @@ app.add_middleware(
 )
 
 @app.get("/")
-def root():
-    return {"status": "API Running"}
+def health_check():
+    return {"status": "Resume Matcher API is working."}
 
 @app.post("/match-resume")
 async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
-    try:
-        if not resume.filename.endswith(".pdf"):
-            return JSONResponse(status_code=400, content={"error": "Only PDF files supported."})
+    if not resume.filename.endswith(".pdf"):
+        return JSONResponse(status_code=400, content={"error": "Only PDF files allowed."})
 
-        resume_bytes = await resume.read()
-        resume_text = extract_text_from_pdf(resume_bytes)
+    try:
+        content = await resume.read()
+        resume_text = extract_text_from_pdf(content)
 
         if not resume_text.strip():
-            return JSONResponse(status_code=400, content={"error": "Resume has no readable text."})
+            return JSONResponse(status_code=400, content={"error": "No readable text found in PDF."})
 
         score = calculate_similarity(resume_text, job_description)
+
         resume_keywords = extract_keywords(resume_text)
         jd_keywords = extract_keywords(job_description)
-
         missing_keywords = sorted(jd_keywords - resume_keywords)
 
         return {
             "score": score,
+            "matched_keywords": sorted(jd_keywords & resume_keywords),
             "missing_keywords": missing_keywords
         }
 
