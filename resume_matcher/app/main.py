@@ -1,8 +1,11 @@
+# app/main.py
+
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
-
+import uvicorn
+import os
 
 app = FastAPI(title="Resume Matcher API (PDF Only)")
 
@@ -44,3 +47,8 @@ async def match_resume(resume: UploadFile = File(...), job_description: str = Fo
 
     except Exception as e:
         return JSONResponse(status_code=500, content={"error": str(e)})
+
+# 👇 This block makes sure Render detects and runs it correctly
+if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port)
