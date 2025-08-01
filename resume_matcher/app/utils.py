@@ -1,26 +1,19 @@
-import tempfile, os, pdfplumber, docx
+import tempfile, os, pdfplumber
 from sentence_transformers import SentenceTransformer, util
-from keybert import KeyBERT
 import spacy
 
-nlp = spacy.load("en_core_web_sm")  # Make sure this matches with main.py
-embedder = SentenceTransformer("all-MiniLM-L6-v2")  # ✅ fast + light
-kw_model = KeyBERT(model=embedder)
+nlp = spacy.load("en_core_web_sm")  # lightweight
 
-def extract_text_from_file(file_bytes, filename):
+embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+def extract_text_from_pdf(file_bytes):
     temp_path = tempfile.mktemp()
     with open(temp_path, "wb") as f:
         f.write(file_bytes)
 
     try:
-        if filename.endswith(".pdf"):
-            with pdfplumber.open(temp_path) as pdf:
-                text = "\n".join([page.extract_text() or "" for page in pdf.pages])
-        elif filename.endswith(".docx"):
-            doc = docx.Document(temp_path)
-            text = "\n".join([p.text for p in doc.paragraphs])
-        else:
-            text = file_bytes.decode("utf-8")
+        with pdfplumber.open(temp_path) as pdf:
+            text = "\n".join([page.extract_text() or "" for page in pdf.pages])
     finally:
         os.remove(temp_path)
 
@@ -31,5 +24,6 @@ def calculate_similarity(text1, text2):
     emb2 = embedder.encode(text2, convert_to_tensor=True)
     return round(util.cos_sim(emb1, emb2).item() * 100, 2)
 
-def extract_keywords(text, top_n=15):
-    return [kw for kw, _ in kw_model.extract_keywords(text, top_n=top_n, stop_words='english')]
+def extract_keywords(text):
+    doc = nlp(text.lower())
+    return set([token.lemma_ for token in doc if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop])
