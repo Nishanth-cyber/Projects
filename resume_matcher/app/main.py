@@ -1,7 +1,8 @@
 from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from utils import extract_text_from_pdf, calculate_similarity, extract_keywords
+from .utils import extract_text_from_pdf, calculate_similarity, extract_keywords
+
 
 app = FastAPI(title="Resume Matcher API (PDF Only)")
 
