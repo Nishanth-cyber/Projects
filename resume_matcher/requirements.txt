@@ -1,10 +1,5 @@
 fastapi
-uvicorn[standard]
-pdfminer.six
+uvicorn
 pdfplumber==0.10.3
-python-multipart
-spacy
-keybert
 sentence-transformers
-scikit-learn
-python-docx
+spacy
