@@ -2,8 +2,10 @@ import tempfile, os, pdfplumber
 from sentence_transformers import SentenceTransformer, util
 import spacy
 
-nlp = spacy.load("en_core_web_sm")  # lightweight
+# Load spaCy model
+nlp = spacy.load("en_core_web_sm")
 
+# Load sentence embedding model
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
 def extract_text_from_pdf(file_bytes):
@@ -26,4 +28,7 @@ def calculate_similarity(text1, text2):
 
 def extract_keywords(text):
     doc = nlp(text.lower())
-    return set([token.lemma_ for token in doc if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop])
+    return set([
+        token.lemma_ for token in doc
+        if token.pos_ in {"NOUN", "PROPN", "VERB"} and not token.is_stop
+    ])
