@@ -2,10 +2,19 @@ from fastapi import FastAPI, UploadFile, File, Form
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from .utils import extract_text_from_file, calculate_similarity, extract_keywords
+import spacy
+import subprocess
+
+# Lazy-load spaCy model (in case it’s not pre-downloaded)
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
 app = FastAPI(title="Resume Matcher API")
 
-# Optional: Allow requests from any frontend
+# Enable CORS for frontend calls
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,6 +22,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Simple health check (Render uses this sometimes)
+@app.get("/")
+def read_root():
+    return {"status": "ok"}
+
+# Main endpoint
 @app.post("/match-resume")
 async def match_resume(resume: UploadFile = File(...), job_description: str = Form(...)):
     try:
