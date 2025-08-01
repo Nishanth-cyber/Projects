@@ -1,0 +1,54 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+env/
+.venv/
+.env/
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor folders
+.vscode/
+.idea/
+
+# Git and Docker
+.git/
+.gitignore
+.dockerignore
+Dockerfile
+
+# Logs and DBs
+*.log
+*.sqlite3
+*.db
+
+# Project extras
+README.md
+tests/
+notebooks/
+examples/
+docs/
+
+# Node junk (if any frontend in same repo)
+node_modules/
+npm-debug.log
+yarn.lock
+package-lock.json
+
+# Models and heavy files (optional)
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pb
+*.zip
+*.tar
+*.gz
+*.whl
