@@ -1,5 +1,5 @@
 fastapi
 uvicorn
 pdfplumber==0.10.3
-sentence-transformers
 spacy
+sentence-transformers
